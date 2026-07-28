@@ -6,7 +6,7 @@ import nltk
 from nltk.stem import WordNetLemmatizer
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-# Download NLTK data if not already present (kept for compatibility, but tokenizer isn't required now)
+# Keep wordnet download, but don't require punkt (we use regex tokenizer)
 try:
     nltk.data.find('corpora/wordnet')
 except LookupError:
@@ -14,16 +14,12 @@ except LookupError:
 try:
     nltk.data.find('tokenizers/punkt')
 except LookupError:
-    # punkt is optional now because we use a regex-based tokenizer below
-    pass
-
-Lemmatizer = WordNetLemmatizer()
+    pass  # punkt is optional now
 
 def preprocess(text):
-    """Lowercase, keep letters only, tokenize with regex (avoids NLTK punkt dependency), and lemmatize."""
+    # Lowercase, keep letters only, tokenize with regex (avoids punkt), and lemmatize
     text = text.lower()
     text = re.sub(r"[^a-zA-Z]", " ", text)
-    # Use a simple regex tokenizer to avoid reliance on NLTK's punkt tokenizer
     words = re.findall(r"\b[a-zA-Z]+\b", text)
     WORDS = [Lemmatizer.lemmatize(word) for word in words]
     return " ".join(WORDS)
