@@ -6,7 +6,7 @@ import nltk
 from nltk.stem import WordNetLemmatizer
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-# Download NLTK data if not already present
+# Download NLTK data if not already present (kept for compatibility, but tokenizer isn't required now)
 try:
     nltk.data.find('corpora/wordnet')
 except LookupError:
@@ -14,14 +14,17 @@ except LookupError:
 try:
     nltk.data.find('tokenizers/punkt')
 except LookupError:
-    nltk.download('punkt')
+    # punkt is optional now because we use a regex-based tokenizer below
+    pass
 
 Lemmatizer = WordNetLemmatizer()
 
 def preprocess(text):
+    """Lowercase, keep letters only, tokenize with regex (avoids NLTK punkt dependency), and lemmatize."""
     text = text.lower()
-    text = re.sub(r"[^a-zA-Z]"," ",text)
-    words = nltk.word_tokenize(text)
+    text = re.sub(r"[^a-zA-Z]", " ", text)
+    # Use a simple regex tokenizer to avoid reliance on NLTK's punkt tokenizer
+    words = re.findall(r"\b[a-zA-Z]+\b", text)
     WORDS = [Lemmatizer.lemmatize(word) for word in words]
     return " ".join(WORDS)
 
@@ -32,7 +35,7 @@ try:
     st.success("Model and TF-IDF vectorizer loaded successfully!")
 except Exception as e:
     st.error(f"Error loading model or TF-IDF vectorizer: {e}")
-    st.stop() # Stop the app if models cannot be loaded
+    st.stop()  # Stop the app if models cannot be loaded
 
 # Streamlit app layout
 st.title("Sentiment Analysis App")
@@ -44,14 +47,14 @@ if st.button("Analyze Sentiment"):
     if user_input:
         # Preprocess the input text
         cleaned_text = preprocess(user_input)
-        
+
         # Transform the cleaned text using the loaded TF-IDF vectorizer
         # Ensure the vectorizer expects a list of documents
         vectorized_text = tfidf_vectorizer.transform([cleaned_text])
-        
+
         # Make a prediction
         prediction = model.predict(vectorized_text)
-        
+
         st.subheader("Prediction:")
         if prediction[0] == 'pos':
             st.success("Positive Sentiment! 😄")
