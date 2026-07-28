@@ -5,6 +5,7 @@ import re
 import nltk
 from nltk.stem import WordNetLemmatizer
 from sklearn.feature_extraction.text import TfidfVectorizer
+import sklearn
 
 # Download NLTK data if not already present (wordnet attempted; punkt is optional)
 try:
@@ -72,6 +73,21 @@ st.write("Enter a review below to classify its sentiment (positive/negative).")
 
 user_input = st.text_area("Review text:", "")
 
+# Small helper to show model/runtime diagnostics
+def show_diagnostics(exc=None):
+    st.write("---")
+    st.write("Runtime diagnostics:")
+    try:
+        st.write("scikit-learn version:", sklearn.__version__)
+    except Exception:
+        st.write("scikit-learn version: unknown")
+    st.write("Model type:", type(model))
+    st.write("Model has attribute '_effective_probability'?:", hasattr(model, '_effective_probability'))
+    st.write("Model has 'support_' (fitted indicator)?:", hasattr(model, 'support_'))
+    if exc is not None:
+        st.write("Exception:", str(exc))
+    st.write("---")
+
 if st.button("Analyze Sentiment"):
     if user_input:
         # Preprocess the input text
@@ -81,8 +97,20 @@ if st.button("Analyze Sentiment"):
         # Ensure the vectorizer expects a list of documents
         vectorized_text = tfidf_vectorizer.transform([cleaned_text])
 
-        # Make a prediction
-        prediction = model.predict(vectorized_text)
+        # Make a prediction (safe wrapper)
+        try:
+            prediction = model.predict(vectorized_text)
+        except AttributeError as e:
+            st.error("Model appears incompatible with this environment (AttributeError during prediction).")
+            show_diagnostics(e)
+            st.info("Possible fixes: reinstall the scikit-learn version used when the model was created, or re-train and re-pickle the model in this environment.")
+            # Stop further execution for safety
+            st.stop()
+        except Exception as e:
+            st.error("An error occurred during prediction.")
+            show_diagnostics(e)
+            st.info("If this persists, consider re-training the model or checking model file compatibility.")
+            st.stop()
 
         st.subheader("Prediction:")
         if prediction[0] == 'pos':
