@@ -6,26 +6,56 @@ import nltk
 from nltk.stem import WordNetLemmatizer
 from sklearn.feature_extraction.text import TfidfVectorizer
 
-# Keep wordnet download, but don't require punkt (we use regex tokenizer)
+# Download NLTK data if not already present (wordnet attempted; punkt is optional)
 try:
     nltk.data.find('corpora/wordnet')
 except LookupError:
-    nltk.download('wordnet')
+    try:
+        nltk.download('wordnet')
+    except Exception:
+        # If download fails, we'll still run but without lemmatization
+        pass
+
 try:
     nltk.data.find('tokenizers/punkt')
 except LookupError:
-    pass  # punkt is optional now
+    # punkt is optional because we fall back to a regex tokenizer below
+    pass
 
-# Initialize lemmatizer
-Lemmatizer = WordNetLemmatizer()
+# Initialize lemmatizer safely (may remain None if WordNet isn't available)
+try:
+    Lemmatizer = WordNetLemmatizer()
+except Exception:
+    Lemmatizer = None
 
 def preprocess(text):
-    # Lowercase, keep letters only, tokenize with regex (avoids punkt), and lemmatize
+    """
+    Lowercase, remove non-letters, tokenize (try NLTK then regex fallback), and lemmatize if possible.
+    This avoids crashing when NLTK punkt or wordnet resources are unavailable.
+    """
+    if not isinstance(text, str):
+        text = str(text)
+
     text = text.lower()
     text = re.sub(r"[^a-zA-Z]", " ", text)
-    words = re.findall(r"\b[a-zA-Z]+\b", text)
-    WORDS = [Lemmatizer.lemmatize(word) for word in words]
-    return " ".join(WORDS)
+
+    # Try nltk.word_tokenize (which requires punkt). If punkt is missing, fall back to regex.
+    try:
+        words = nltk.word_tokenize(text)
+        # filter out any non-alpha tokens introduced by tokenization
+        words = [w for w in words if re.fullmatch(r"[A-Za-z]+", w)]
+    except LookupError:
+        words = re.findall(r"\b[a-zA-Z]+\b", text)
+
+    # Lemmatize if available, otherwise return tokens as-is
+    if Lemmatizer is not None:
+        try:
+            words = [Lemmatizer.lemmatize(w) for w in words]
+        except Exception:
+            # On any unexpected lemmatizer error, skip lemmatization
+            pass
+
+    return " ".join(words)
 
 # Load the trained model and TF-IDF vectorizer
 try:
