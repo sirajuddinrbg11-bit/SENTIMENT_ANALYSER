@@ -16,6 +16,9 @@ try:
 except LookupError:
     pass  # punkt is optional now
 
+# Initialize lemmatizer
+Lemmatizer = WordNetLemmatizer()
+
 def preprocess(text):
     # Lowercase, keep letters only, tokenize with regex (avoids punkt), and lemmatize
     text = text.lower()
